@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KS Mileage">
+<title>KS Mileage Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent-dim: rgba(232, 255, 71, 0.12);
+    --accent-dim2: rgba(232, 255, 71, 0.06);
+    --text: #f0f0f0;
+    --muted: #666;
+    --danger: #ff4757;
+    --success: #2ed573;
+    --radius: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  /* Background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 0%, rgba(232,255,71,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 100%, rgba(232,255,71,0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 430px;
+    margin: 0 auto;
+    padding: 0 0 40px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    padding: 52px 24px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+
+  .km-rate {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .header-sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  /* Status bar */
+  .status-bar {
+    margin: 20px 24px 0;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .status-bar.idle {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .status-bar.active {
+    background: rgba(232,255,71,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(232,255,71,0.2);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .status-bar.active .status-dot {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 1.5s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.8); }
+  }
+
+  /* Main content */
+  .main {
+    padding: 24px;
+  }
+
+  /* Trip card */
+  .trip-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .trip-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .card-date {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+  }
+
+  /* Location fields */
+  .location-block {
+    padding: 16px 20px;
+  }
+
+  .location-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    position: relative;
+  }
+
+  .location-row + .location-row {
+    margin-top: 12px;
+  }
+
+  .loc-icon-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 3px;
+  }
+
+  .loc-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .loc-dot.start { background: var(--accent); }
+  .loc-dot.end { background: var(--danger); border: 2px solid var(--danger); background: transparent; }
+
+  .loc-line {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+    margin: 3px 0;
+  }
+
+  .loc-content {
+    flex: 1;
+  }
+
+  .loc-label {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .loc-value {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 400;
+    min-height: 18px;
+  }
+
+  .loc-value.placeholder { color: var(--muted); font-style: italic; }
+
+  /* Form fields */
+  .fields {
+    padding: 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    width: 100%;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: rgba(232,255,71,0.4);
+  }
+
+  .field select option {
+    background: var(--surface2);
+  }
+
+  /* Distance display */
+  .distance-display {
+    background: var(--accent-dim2);
+    border: 1px solid rgba(232,255,71,0.15);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  .distance-display.visible { display: block; }
+
+  .distance-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .distance-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: 1px;
+  }
+
+  .distance-unit {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--muted);
+    margin-left: 6px;
+  }
+
+  .deductible {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .deductible span {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn:active { transform: scale(0.98); }
+
+  .btn-start {
+    background: var(--accent);
+    color: #0a0a0a;
+  }
+
+  .btn-start:hover { background: #d4eb30; }
+
+  .btn-end {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+
+  .btn-end:hover { background: rgba(255,71,87,0.08); }
+
+  .btn-save {
+    background: var(--surface2);
+    color: var(--accent);
+    border: 1px solid rgba(232,255,71,0.3);
+  }
+
+  .btn-save:hover { background: var(--accent-dim); }
+
+  .btn-disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .btn-row .btn { flex: 1; }
+
+  /* Log section */
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .log-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .log-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 3px 8px;
+    border-radius: 20px;
+  }
+
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .log-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-item-left { flex: 1; min-width: 0; }
+
+  .log-item-client {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .log-item-meta {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .log-item-right { text-align: right; flex-shrink: 0; }
+
+  .log-item-km {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .log-item-deduct {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .log-item.synced {
+    border-color: rgba(46,213,115,0.2);
+  }
+
+  .sync-badge {
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    color: var(--success);
+    letter-spacing: 0.5px;
+  }
+
+  .empty-log {
+    text-align: center;
+    padding: 32px 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    z-index: 100;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    max-width: calc(100vw - 48px);
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: rgba(46,213,115,0.4); color: var(--success); }
+  .toast.error { border-color: rgba(255,71,87,0.4); color: var(--danger); }
+
+  /* Settings panel */
+  .settings-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    z-index: 50;
+    transition: all 0.2s;
+  }
+
+  .settings-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .settings-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: none;
+  }
+
+  .settings-panel.open { display: flex; flex-direction: column; justify-content: flex-end; }
+
+  .settings-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+  }
+
+  .settings-sheet {
+    position: relative;
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    border-top: 1px solid var(--border);
+    padding: 24px;
+    z-index: 1;
+  }
+
+  .settings-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+
+  .settings-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+
+  .settings-field {
+    margin-bottom: 14px;
+  }
+
+  .settings-field label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .settings-field input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s;
+  }
+
+  .settings-field input:focus { border-color: rgba(232,255,71,0.4); }
+
+  .settings-note {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">KS MILEAGE</div>
+      <div class="km-rate" id="rateDisplay">$0.72 / km</div>
+    </div>
+    <div class="header-sub">Business trip tracker — CRA 2025</div>
+  </div>
+
+  <div class="status-bar idle" id="statusBar">
+    <div class="status-dot"></div>
+    <span id="statusText">No active trip</span>
+  </div>
+
+  <div class="main">
+
+    <!-- Trip card -->
+    <div class="trip-card">
+      <div class="trip-card-header">
+        <div class="card-label">Current Trip</div>
+        <div class="card-date" id="tripDate">—</div>
+      </div>
+
+      <div class="location-block">
+        <div class="location-row">
+          <div class="loc-icon-col">
+            <div class="loc-dot start"></div>
+            <div class="loc-line"></div>
+          </div>
+          <div class="loc-content">
+            <div class="loc-label">From</div>
+            <div class="loc-value placeholder" id="startLocDisplay">Tap Start to capture location</div>
+          </div>
+        </div>
+        <div class="location-row">
+          <div class="loc-icon-col">
+            <div class="loc-dot end"></div>
+          </div>
+          <div class="loc-content">
+            <div class="loc-label">To</div>
+            <div class="loc-value placeholder" id="endLocDisplay">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fields">
+        <div class="field">
+          <label>Client / Project</label>
+          <input type="text" id="clientInput" placeholder="e.g. Nova Auto Detailing" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Purpose</label>
+          <select id="purposeSelect">
+            <option value="">Select purpose...</option>
+            <option value="Filming">Filming</option>
+            <option value="Client Meeting">Client Meeting</option>
+            <option value="Scout Location">Scout Location</option>
+            <option value="Equipment Pickup">Equipment Pickup</option>
+            <option value="Event Coverage">Event Coverage</option>
+            <option value="Delivery">Delivery</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Notes (optional)</label>
+          <input type="text" id="notesInput" placeholder="e.g. Detailing shoot at West Ed" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <!-- Distance display (shown after trip ends) -->
+    <div class="distance-display" id="distanceDisplay">
+      <div class="distance-row">
+        <div>
+          <div class="distance-num" id="distanceNum">0</div>
+          <span class="distance-unit">km</span>
+        </div>
+      </div>
+      <div class="deductible">CRA deductible: <span id="deductibleAmt">$0.00</span></div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="btn-row" id="btnRow">
+      <button class="btn btn-start" id="startBtn" onclick="startTrip()">START TRIP</button>
+      <button class="btn btn-end btn-disabled" id="endBtn" onclick="endTrip()">END TRIP</button>
+    </div>
+
+    <button class="btn btn-save btn-disabled" id="saveBtn" onclick="saveTrip()">LOG TRIP TO SHEET</button>
+
+    <div style="height: 32px;"></div>
+
+    <!-- Trip log -->
+    <div class="log-header">
+      <div class="log-title">Recent Trips</div>
+      <div class="log-count" id="logCount">0 trips</div>
+    </div>
+    <div class="log-list" id="logList">
+      <div class="empty-log">No trips logged yet</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Settings button -->
+<div class="settings-btn" onclick="openSettings()">⚙</div>
+
+<!-- Settings panel -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-overlay" onclick="closeSettings()"></div>
+  <div class="settings-sheet">
+    <div class="settings-handle"></div>
+    <div class="settings-title">Settings</div>
+
+    <div class="settings-field">
+      <label>Google Apps Script URL</label>
+      <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
+      <div class="settings-note">Paste your deployed Apps Script web app URL here to sync trips to Google Sheets.</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="settings-field">
+      <label>CRA Rate ($/km)</label>
+      <input type="number" id="craRate" value="0.72" step="0.01" min="0">
+      <div class="settings-note">2025 CRA rate: $0.72/km for first 5,000km. Update each year.</div>
+    </div>
+
+    <div style="height: 8px;"></div>
+    <button class="btn btn-save" onclick="saveSettings()" style="font-size:16px;">SAVE SETTINGS</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────
+let state = {
+  tripActive: false,
+  startCoords: null,
+  endCoords: null,
+  startAddress: '',
+  endAddress: '',
+  startTime: null,
+  distance: 0,
+  trips: JSON.parse(localStorage.getItem('ks_trips') || '[]'),
+  scriptUrl: localStorage.getItem('ks_script_url') || '',
+  craRate: parseFloat(localStorage.getItem('ks_cra_rate') || '0.72')
+};
+
+// ── Init ──────────────────────────────────────────────────
+function init() {
+  updateRateDisplay();
+  renderLog();
+  document.getElementById('tripDate').textContent = formatDate(new Date());
+}
+
+// ── Start Trip ────────────────────────────────────────────
+function startTrip() {
+  if (!navigator.geolocation) {
+    showToast('Geolocation not supported on this device', 'error');
+    return;
+  }
+
+  document.getElementById('startBtn').textContent = 'LOCATING...';
+  document.getElementById('startBtn').style.opacity = '0.6';
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      state.startCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      state.startTime = new Date();
+      state.tripActive = true;
+
+      state.startAddress = await reverseGeocode(state.startCoords.lat, state.startCoords.lng);
+
+      document.getElementById('startLocDisplay').textContent = state.startAddress;
+      document.getElementById('startLocDisplay').classList.remove('placeholder');
+      document.getElementById('endLocDisplay').textContent = 'Trip in progress...';
+
+      // Update UI
+      document.getElementById('startBtn').classList.add('btn-disabled');
+      document.getElementById('startBtn').textContent = 'TRIP ACTIVE';
+      document.getElementById('endBtn').classList.remove('btn-disabled');
+
+      const sb = document.getElementById('statusBar');
+      sb.classList.remove('idle');
+      sb.classList.add('active');
+      document.getElementById('statusText').textContent = 'Trip active — ' + formatTime(state.startTime);
+
+      document.getElementById('tripDate').textContent = formatDate(state.startTime);
+
+      showToast('Trip started', 'success');
+    },
+    (err) => {
+      document.getElementById('startBtn').textContent = 'START TRIP';
+      document.getElementById('startBtn').style.opacity = '1';
+      showToast('Could not get location. Enable location access.', 'error');
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+
+// ── End Trip ──────────────────────────────────────────────
+function endTrip() {
+  if (!state.tripActive) return;
+
+  document.getElementById('endBtn').textContent = 'LOCATING...';
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      state.endCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      state.endAddress = await reverseGeocode(state.endCoords.lat, state.endCoords.lng);
+      state.distance = calcDistance(state.startCoords, state.endCoords);
+
+      document.getElementById('endLocDisplay').textContent = state.endAddress;
+      document.getElementById('endLocDisplay').classList.remove('placeholder');
+
+      // Show distance
+      const dd = document.getElementById('distanceDisplay');
+      dd.classList.add('visible');
+      document.getElementById('distanceNum').textContent = state.distance.toFixed(1);
+      document.getElementById('deductibleAmt').textContent = '$' + (state.distance * state.craRate).toFixed(2);
+
+      // Update buttons
+      document.getElementById('endBtn').textContent = 'END TRIP';
+      document.getElementById('endBtn').classList.add('btn-disabled');
+      document.getElementById('saveBtn').classList.remove('btn-disabled');
+
+      const sb = document.getElementById('statusBar');
+      sb.classList.remove('active');
+      sb.classList.add('idle');
+      document.getElementById('statusText').textContent = 'Trip ended — ' + state.distance.toFixed(1) + ' km logged';
+
+      showToast('Trip ended — ' + state.distance.toFixed(1) + ' km', 'success');
+    },
+    (err) => {
+      document.getElementById('endBtn').textContent = 'END TRIP';
+      showToast('Could not get location', 'error');
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+
+// ── Save Trip ─────────────────────────────────────────────
+async function saveTrip() {
+  const client = document.getElementById('clientInput').value.trim();
+  const purpose = document.getElementById('purposeSelect').value;
+  const notes = document.getElementById('notesInput').value.trim();
+
+  if (!client) { showToast('Enter a client / project name', 'error'); return; }
+  if (!purpose) { showToast('Select a purpose', 'error'); return; }
+
+  const trip = {
+    date: formatDate(state.startTime),
+    startAddress: state.startAddress,
+    endAddress: state.endAddress,
+    distanceKm: parseFloat(state.distance.toFixed(1)),
+    client,
+    purpose,
+    notes,
+    deductible: parseFloat((state.distance * state.craRate).toFixed(2)),
+    synced: false,
+    id: Date.now()
+  };
+
+  // Try to sync to Google Sheets
+  if (state.scriptUrl) {
+    document.getElementById('saveBtn').textContent = 'SYNCING...';
+    try {
+      const res = await fetch(state.scriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trip)
+      });
+      trip.synced = true;
+      showToast('Logged to Google Sheets ✓', 'success');
+    } catch (e) {
+      showToast('Saved locally — sync failed', 'error');
+    }
+  } else {
+    showToast('Saved locally — add Script URL in settings to sync', 'success');
+  }
+
+  // Save locally
+  state.trips.unshift(trip);
+  localStorage.setItem('ks_trips', JSON.stringify(state.trips.slice(0, 50)));
+
+  // Reset
+  resetTrip();
+  renderLog();
+  document.getElementById('saveBtn').textContent = 'LOG TRIP TO SHEET';
+}
+
+// ── Reset ─────────────────────────────────────────────────
+function resetTrip() {
+  state.tripActive = false;
+  state.startCoords = null;
+  state.endCoords = null;
+  state.startAddress = '';
+  state.endAddress = '';
+  state.distance = 0;
+
+  document.getElementById('startLocDisplay').textContent = 'Tap Start to capture location';
+  document.getElementById('startLocDisplay').classList.add('placeholder');
+  document.getElementById('endLocDisplay').textContent = '—';
+  document.getElementById('endLocDisplay').classList.add('placeholder');
+  document.getElementById('distanceDisplay').classList.remove('visible');
+  document.getElementById('clientInput').value = '';
+  document.getElementById('purposeSelect').value = '';
+  document.getElementById('notesInput').value = '';
+
+  document.getElementById('startBtn').classList.remove('btn-disabled');
+  document.getElementById('startBtn').textContent = 'START TRIP';
+  document.getElementById('startBtn').style.opacity = '1';
+  document.getElementById('endBtn').classList.add('btn-disabled');
+  document.getElementById('endBtn').textContent = 'END TRIP';
+  document.getElementById('saveBtn').classList.add('btn-disabled');
+
+  document.getElementById('statusBar').classList.remove('active');
+  document.getElementById('statusBar').classList.add('idle');
+  document.getElementById('statusText').textContent = 'No active trip';
+  document.getElementById('tripDate').textContent = formatDate(new Date());
+}
+
+// ── Render Log ────────────────────────────────────────────
+function renderLog() {
+  const list = document.getElementById('logList');
+  document.getElementById('logCount').textContent = state.trips.length + ' trip' + (state.trips.length !== 1 ? 's' : '');
+
+  if (state.trips.length === 0) {
+    list.innerHTML = '<div class="empty-log">No trips logged yet</div>';
+    return;
+  }
+
+  list.innerHTML = state.trips.slice(0, 10).map(t => `
+    <div class="log-item ${t.synced ? 'synced' : ''}">
+      <div class="log-item-left">
+        <div class="log-item-client">${t.client}</div>
+        <div class="log-item-meta">${t.date} · ${t.purpose}${t.synced ? '' : ' · local'}</div>
+      </div>
+      <div class="log-item-right">
+        <div class="log-item-km">${t.distanceKm}</div>
+        <div class="log-item-deduct">$${t.deductible.toFixed(2)}</div>
+        ${t.synced ? '<div class="sync-badge">SYNCED</div>' : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Geolocation helpers ───────────────────────────────────
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+    const data = await res.json();
+    const a = data.address;
+    return [a.road, a.suburb || a.city || a.town].filter(Boolean).join(', ') || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  } catch {
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
+function calcDistance(a, b) {
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const x = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(a.lat * Math.PI/180) * Math.cos(b.lat * Math.PI/180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
+// ── Formatters ────────────────────────────────────────────
+function formatDate(d) {
+  return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(d) {
+  return d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Settings ──────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('scriptUrl').value = state.scriptUrl;
+  document.getElementById('craRate').value = state.craRate;
+  document.getElementById('settingsPanel').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settingsPanel').classList.remove('open');
+}
+
+function saveSettings() {
+  state.scriptUrl = document.getElementById('scriptUrl').value.trim();
+  state.craRate = parseFloat(document.getElementById('craRate').value) || 0.72;
+  localStorage.setItem('ks_script_url', state.scriptUrl);
+  localStorage.setItem('ks_cra_rate', state.craRate);
+  updateRateDisplay();
+  closeSettings();
+  showToast('Settings saved', 'success');
+}
+
+function updateRateDisplay() {
+  document.getElementById('rateDisplay').textContent = '$' + state.craRate.toFixed(2) + ' / km';
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>
