@@ -221,6 +221,11 @@ body::before { content:''; position:fixed; inset:0; background:radial-gradient(e
 <div class="toast" id="toast"></div>
 
 <script>
+// ── PASTE YOUR OPENROUTESERVICE API KEY HERE ──────────────
+// Get yours free at openrouteservice.org — never share this key
+var ORS_API_KEY = 'paste-your-openrouteservice-key-here';
+// ──────────────────────────────────────────────────────────
+
 var state = {
   tripActive: false,
   startCoords: null,
@@ -319,7 +324,7 @@ async function saveTrip() {
   if (!purpose) { showToast('Select a purpose', 'error'); return; }
 
   var distanceKm = (state.startCoords && state.endCoords)
-    ? calcDistance(state.startCoords, state.endCoords)
+    ? await calcDistance(state.startCoords, state.endCoords)
     : 0;
 
   var trip = {
@@ -422,7 +427,21 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-function calcDistance(a, b) {
+async function calcDistance(a, b) {
+  // Use OpenRouteService for real road distance
+  if (ORS_API_KEY && ORS_API_KEY !== 'paste-your-openrouteservice-key-here') {
+    try {
+      var res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car?api_key=' + ORS_API_KEY + '&start=' + a.lng + ',' + a.lat + '&end=' + b.lng + ',' + b.lat);
+      var data = await res.json();
+      if (data.features && data.features[0]) {
+        // ORS returns distance in meters — convert to km
+        return data.features[0].properties.segments[0].distance / 1000;
+      }
+    } catch(e) {
+      console.log('ORS routing failed, falling back to straight line');
+    }
+  }
+  // Fallback: straight line (Haversine)
   var R = 6371;
   var dLat = (b.lat - a.lat) * Math.PI / 180;
   var dLng = (b.lng - a.lng) * Math.PI / 180;
