@@ -229,7 +229,7 @@ body::before { content:''; position:fixed; inset:0; background:radial-gradient(e
 <script>
 // ── PASTE YOUR OPENROUTESERVICE API KEY HERE ──────────────
 // Get yours free at openrouteservice.org — never share this key
-var ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ3Mjk1YmM2ZmJhZDRhMDA4ZTQyMGZkY2E4ZjRiYjAxIiwiaCI6Im11cm11cjY0In0=e';
+var ORS_API_KEY = 'paste-your-openrouteservice-key-here';
 // ──────────────────────────────────────────────────────────
 
 var state = {
@@ -265,10 +265,12 @@ function startTrip() {
       // Check if within 500m of home — if so use saved home address
       if (state.homeCoords && state.homeAddress) {
         var distFromHome = haversine(state.startCoords, state.homeCoords);
+        showToast('Distance from home: ' + (distFromHome * 1000).toFixed(0) + 'm (coords: ' + state.startCoords.lat.toFixed(4) + ',' + state.startCoords.lng.toFixed(4) + ')', '');
         state.startAddress = (distFromHome <= 0.5)
           ? state.homeAddress
           : await reverseGeocode(state.startCoords.lat, state.startCoords.lng);
       } else {
+        showToast('No home coords saved — homeCoords: ' + JSON.stringify(state.homeCoords), 'error');
         state.startAddress = await reverseGeocode(state.startCoords.lat, state.startCoords.lng);
       }
 
