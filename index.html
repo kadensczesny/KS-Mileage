@@ -209,6 +209,12 @@ body::before { content:''; position:fixed; inset:0; background:radial-gradient(e
     <div class="settings-handle"></div>
     <div class="settings-title">Settings</div>
     <div class="settings-field">
+      <label>Home Address</label>
+      <input type="text" id="homeAddressInput" placeholder="963 167 Ave NE, Edmonton" autocomplete="off">
+      <div class="settings-note">Enter your exact home address. The app will use this automatically when you start a trip from home (within 500m).</div>
+    </div>
+    <div style="height:8px;"></div>
+    <div class="settings-field">
       <label>Google Apps Script URL</label>
       <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
       <div class="settings-note">Paste your deployed Apps Script web app URL here to sync trips to Google Sheets.</div>
@@ -223,7 +229,7 @@ body::before { content:''; position:fixed; inset:0; background:radial-gradient(e
 <script>
 // ── PASTE YOUR OPENROUTESERVICE API KEY HERE ──────────────
 // Get yours free at openrouteservice.org — never share this key
-var ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ3Mjk1YmM2ZmJhZDRhMDA4ZTQyMGZkY2E4ZjRiYjAxIiwiaCI6Im11cm11cjY0In0=';
+var ORS_API_KEY = 'paste-your-openrouteservice-key-here';
 // ──────────────────────────────────────────────────────────
 
 var state = {
@@ -234,7 +240,9 @@ var state = {
   endAddress: '',
   startTime: null,
   trips: JSON.parse(localStorage.getItem('ks_trips') || '[]'),
-  scriptUrl: localStorage.getItem('ks_script_url') || ''
+  scriptUrl: localStorage.getItem('ks_script_url') || '',
+  homeAddress: localStorage.getItem('ks_home_address') || '',
+  homeCoords: JSON.parse(localStorage.getItem('ks_home_coords') || 'null')
 };
 
 function init() {
@@ -254,7 +262,15 @@ function startTrip() {
       state.startCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       state.startTime = new Date();
       state.tripActive = true;
-      state.startAddress = await reverseGeocode(state.startCoords.lat, state.startCoords.lng);
+      // Check if within 500m of home — if so use saved home address
+      if (state.homeCoords && state.homeAddress) {
+        var distFromHome = haversine(state.startCoords, state.homeCoords);
+        state.startAddress = (distFromHome <= 0.5)
+          ? state.homeAddress
+          : await reverseGeocode(state.startCoords.lat, state.startCoords.lng);
+      } else {
+        state.startAddress = await reverseGeocode(state.startCoords.lat, state.startCoords.lng);
+      }
 
       document.getElementById('startLocDisplay').textContent = state.startAddress;
       document.getElementById('startLocDisplay').classList.remove('placeholder');
@@ -290,7 +306,15 @@ function endTrip() {
   navigator.geolocation.getCurrentPosition(
     async function(pos) {
       state.endCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      state.endAddress = await reverseGeocode(state.endCoords.lat, state.endCoords.lng);
+      // Check if within 500m of home — if so use saved home address
+      if (state.homeCoords && state.homeAddress) {
+        var distFromHome = haversine(state.endCoords, state.homeCoords);
+        state.endAddress = (distFromHome <= 0.5)
+          ? state.homeAddress
+          : await reverseGeocode(state.endCoords.lat, state.endCoords.lng);
+      } else {
+        state.endAddress = await reverseGeocode(state.endCoords.lat, state.endCoords.lng);
+      }
 
       document.getElementById('endLocDisplay').textContent = state.endAddress;
       document.getElementById('endLocDisplay').classList.remove('placeholder');
@@ -427,6 +451,16 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
+function haversine(a, b) {
+  var R = 6371;
+  var dLat = (b.lat - a.lat) * Math.PI / 180;
+  var dLng = (b.lng - a.lng) * Math.PI / 180;
+  var x = Math.sin(dLat/2) * Math.sin(dLat/2) +
+           Math.cos(a.lat * Math.PI/180) * Math.cos(b.lat * Math.PI/180) *
+           Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
 async function calcDistance(a, b) {
   // Use OpenRouteService for real road distance
   if (ORS_API_KEY && ORS_API_KEY !== 'paste-your-openrouteservice-key-here') {
@@ -454,11 +488,43 @@ async function calcDistance(a, b) {
 function formatDate(d) { return d.toLocaleDateString('en-CA', { month:'short', day:'numeric', year:'numeric' }); }
 function formatTime(d) { return d.toLocaleTimeString('en-CA', { hour:'2-digit', minute:'2-digit' }); }
 
-function openSettings() { document.getElementById('scriptUrl').value = state.scriptUrl; document.getElementById('settingsPanel').classList.add('open'); }
+function openSettings() {
+  document.getElementById('scriptUrl').value = state.scriptUrl;
+  document.getElementById('homeAddressInput').value = state.homeAddress;
+  document.getElementById('settingsPanel').classList.add('open');
+}
 function closeSettings() { document.getElementById('settingsPanel').classList.remove('open'); }
-function saveSettings() {
+async function saveSettings() {
   state.scriptUrl = document.getElementById('scriptUrl').value.trim();
   localStorage.setItem('ks_script_url', state.scriptUrl);
+
+  var homeAddr = document.getElementById('homeAddressInput').value.trim();
+  if (homeAddr && homeAddr !== state.homeAddress) {
+    // Geocode the home address to get coordinates
+    try {
+      var res = await fetch('https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(homeAddr) + '&format=json&limit=1');
+      var data = await res.json();
+      if (data && data[0]) {
+        state.homeCoords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        state.homeAddress = homeAddr;
+        localStorage.setItem('ks_home_address', homeAddr);
+        localStorage.setItem('ks_home_coords', JSON.stringify(state.homeCoords));
+        showToast('Home address saved', 'success');
+      } else {
+        showToast('Could not find that address — check spelling', 'error');
+        return;
+      }
+    } catch(e) {
+      showToast('Could not geocode address', 'error');
+      return;
+    }
+  } else if (!homeAddr) {
+    state.homeAddress = '';
+    state.homeCoords = null;
+    localStorage.removeItem('ks_home_address');
+    localStorage.removeItem('ks_home_coords');
+  }
+
   closeSettings();
   showToast('Settings saved', 'success');
 }
