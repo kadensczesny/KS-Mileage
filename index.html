@@ -209,6 +209,12 @@ body::before { content:''; position:fixed; inset:0; background:radial-gradient(e
     <div class="settings-handle"></div>
     <div class="settings-title">Settings</div>
     <div class="settings-field">
+      <label>OpenRouteService API Key</label>
+      <input type="text" id="orsKeyInput" placeholder="Paste your ORS API key here" autocomplete="off">
+      <div class="settings-note">Get your free key at openrouteservice.org — required for accurate road distance.</div>
+    </div>
+    <div style="height:8px;"></div>
+    <div class="settings-field">
       <label>Home Address</label>
       <input type="text" id="homeAddressInput" placeholder="963 167 Ave NE, Edmonton" autocomplete="off">
       <div class="settings-note">Enter your exact home address. The app will use this automatically when you start a trip from home (within 500m).</div>
@@ -227,10 +233,7 @@ body::before { content:''; position:fixed; inset:0; background:radial-gradient(e
 <div class="toast" id="toast"></div>
 
 <script>
-// ── PASTE YOUR OPENROUTESERVICE API KEY HERE ──────────────
-// Get yours free at openrouteservice.org — never share this key
-var ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ3Mjk1YmM2ZmJhZDRhMDA4ZTQyMGZkY2E4ZjRiYjAxIiwiaCI6Im11cm11cjY0In0=';
-// ──────────────────────────────────────────────────────────
+// ORS API key is stored in app settings — paste it in the app, not here
 
 // Default home coords — already set to your address
 var DEFAULT_HOME_COORDS = { lat: 53.628363, lng: -113.326770 };
@@ -245,6 +248,7 @@ var state = {
   startTime: null,
   trips: JSON.parse(localStorage.getItem('ks_trips') || '[]'),
   scriptUrl: localStorage.getItem('ks_script_url') || '',
+  orsKey: localStorage.getItem('ks_ors_key') || '',
   homeAddress: localStorage.getItem('ks_home_address') || DEFAULT_HOME_ADDRESS,
   homeCoords: JSON.parse(localStorage.getItem('ks_home_coords') || 'null') || DEFAULT_HOME_COORDS
 };
@@ -468,9 +472,9 @@ function haversine(a, b) {
 
 async function calcDistance(a, b) {
   // Use OpenRouteService for real road distance
-  if (ORS_API_KEY && ORS_API_KEY !== 'paste-your-openrouteservice-key-here') {
+  if (state.orsKey) {
     try {
-      var res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car?api_key=' + ORS_API_KEY + '&start=' + a.lng + ',' + a.lat + '&end=' + b.lng + ',' + b.lat);
+      var res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car?api_key=' + state.orsKey + '&start=' + a.lng + ',' + a.lat + '&end=' + b.lng + ',' + b.lat);
       var data = await res.json();
       if (data.features && data.features[0]) {
         // ORS returns distance in meters — convert to km
@@ -495,6 +499,7 @@ function formatTime(d) { return d.toLocaleTimeString('en-CA', { hour:'2-digit', 
 
 function openSettings() {
   document.getElementById('scriptUrl').value = state.scriptUrl;
+  document.getElementById('orsKeyInput').value = state.orsKey;
   document.getElementById('homeAddressInput').value = state.homeAddress;
   document.getElementById('settingsPanel').classList.add('open');
 }
@@ -502,6 +507,9 @@ function closeSettings() { document.getElementById('settingsPanel').classList.re
 async function saveSettings() {
   state.scriptUrl = document.getElementById('scriptUrl').value.trim();
   localStorage.setItem('ks_script_url', state.scriptUrl);
+
+  state.orsKey = document.getElementById('orsKeyInput').value.trim();
+  localStorage.setItem('ks_ors_key', state.orsKey);
 
   var homeAddr = document.getElementById('homeAddressInput').value.trim();
   if (homeAddr && homeAddr !== state.homeAddress) {
