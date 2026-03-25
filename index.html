@@ -318,6 +318,10 @@ async function saveTrip() {
   if (!client) { showToast('Enter a client / project name', 'error'); return; }
   if (!purpose) { showToast('Select a purpose', 'error'); return; }
 
+  var distanceKm = (state.startCoords && state.endCoords)
+    ? calcDistance(state.startCoords, state.endCoords)
+    : 0;
+
   var trip = {
     date: formatDate(state.startTime),
     time: formatTime(state.startTime),
@@ -326,6 +330,7 @@ async function saveTrip() {
     purpose: purpose,
     startAddress: state.startAddress,
     endAddress: state.endAddress,
+    distanceKm: parseFloat(distanceKm.toFixed(1)),
     notes: notes,
     synced: false,
     id: Date.now()
@@ -399,7 +404,7 @@ function renderLog() {
       '</div>' +
       '<div class="log-right">' +
         '<div class="log-odo">' + (t.odometer ? t.odometer.toLocaleString() : '—') + '</div>' +
-        '<div class="log-odo-label">start km</div>' +
+        '<div class="log-odo-label">start km · ' + (t.distanceKm ? t.distanceKm + ' km traveled' : '') + '</div>' +
         (t.synced ? '<div class="sync-badge">SYNCED</div>' : '') +
       '</div>' +
     '</div>';
@@ -415,6 +420,16 @@ async function reverseGeocode(lat, lng) {
   } catch(e) {
     return lat.toFixed(4) + ', ' + lng.toFixed(4);
   }
+}
+
+function calcDistance(a, b) {
+  var R = 6371;
+  var dLat = (b.lat - a.lat) * Math.PI / 180;
+  var dLng = (b.lng - a.lng) * Math.PI / 180;
+  var x = Math.sin(dLat/2) * Math.sin(dLat/2) +
+           Math.cos(a.lat * Math.PI/180) * Math.cos(b.lat * Math.PI/180) *
+           Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
 }
 
 function formatDate(d) { return d.toLocaleDateString('en-CA', { month:'short', day:'numeric', year:'numeric' }); }
