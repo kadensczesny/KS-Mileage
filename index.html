@@ -5,668 +5,555 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="KS Mileage">
-<title>KS Mileage Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<title>KS Mileage</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #0a0a0a;
-  --surface: #141414;
-  --surface2: #1e1e1e;
-  --border: #2a2a2a;
-  --accent: #e8ff47;
-  --accent-dim: rgba(232,255,71,0.1);
-  --text: #f0f0f0;
-  --muted: #666;
-  --danger: #ff4757;
-  --success: #2ed573;
-  --warning: #ffa502;
-  --radius: 16px;
+:root{
+  --navy:#0B1220; --panel:#111C30; --panel2:#182540; --line:#243452;
+  --amber:#F5A623; --amber-dim:#B97D1A; --text:#E8EDF6; --muted:#8FA0BC;
+  --green:#3DDC84; --red:#FF5D5D; --radius:14px;
 }
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
-body::before { content:''; position:fixed; inset:0; background:radial-gradient(ellipse at 20% 0%,rgba(232,255,71,0.04) 0%,transparent 60%); pointer-events:none; }
-.app { position:relative; max-width:430px; margin:0 auto; padding:0 0 60px; }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--navy);color:var(--text);
+  font-family:'Inter',-apple-system,sans-serif;font-size:15px}
+#app{display:flex;flex-direction:column;height:100%;height:100dvh}
 
-.header { padding:52px 24px 20px; border-bottom:1px solid var(--border); }
-.logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; color:var(--accent); }
-.header-sub { font-size:13px; color:var(--muted); font-weight:300; margin-top:3px; }
+header{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;background:var(--navy);z-index:500}
+.brand{font-family:'Barlow Condensed';font-weight:700;font-size:20px;letter-spacing:.12em}
+.brand span{color:var(--amber)}
+.hbtns{display:flex;gap:8px}
+.iconbtn{width:38px;height:38px;border-radius:10px;background:var(--panel);border:1px solid var(--line);
+  color:var(--muted);font-size:17px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 
-.status-bar { margin:16px 24px 0; padding:11px 15px; border-radius:10px; font-size:12px; font-family:'DM Mono',monospace; display:flex; align-items:center; gap:8px; transition:all 0.3s; }
-.status-bar.idle { background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
-.status-bar.active { background:rgba(232,255,71,0.08); color:var(--accent); border:1px solid rgba(232,255,71,0.2); }
-.status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); flex-shrink:0; }
-.status-bar.active .status-dot { background:var(--accent); box-shadow:0 0 8px var(--accent); animation:pulse 1.5s ease infinite; }
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.8)} }
+#map{flex:1;z-index:1;background:#0e1626}
+.leaflet-container{background:#0e1626}
 
-.main { padding:20px 24px; }
+/* instrument cluster */
+#cluster{background:var(--navy);border-top:1px solid var(--line);
+  padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 14px);z-index:500}
+.readouts{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px}
+.readout{text-align:center;flex:1}
+.readout .val{font-family:'Barlow Condensed';font-weight:700;font-size:40px;line-height:1;
+  font-variant-numeric:tabular-nums;color:var(--text)}
+.readout.main .val{font-size:56px;color:var(--amber)}
+.readout .unit{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-top:4px}
+#gpsdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:5px;vertical-align:1px}
+#gpsdot.ok{background:var(--green)}
 
-.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:14px; overflow:hidden; }
-.card-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-.card-label { font-size:10px; font-family:'DM Mono',monospace; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
-.card-date { font-size:11px; font-family:'DM Mono',monospace; color:var(--muted); }
+.bigbtn{width:100%;padding:16px;border:none;border-radius:var(--radius);
+  font-family:'Barlow Condensed';font-weight:700;font-size:22px;letter-spacing:.14em;cursor:pointer}
+#startBtn{background:var(--amber);color:#1A1204}
+#startBtn:active{background:var(--amber-dim)}
+.activerow{display:none;gap:10px}
+.activerow.show{display:flex}
+#endBtn{background:var(--amber);color:#1A1204;flex:3}
+#cancelBtn{background:var(--panel);color:var(--muted);border:1px solid var(--line);flex:1}
+#tripFrom{font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px;display:none}
+#tripFrom.show{display:block}
+#tripFrom b{color:var(--text);font-weight:500}
 
-.route-list { padding:14px 18px; display:flex; flex-direction:column; }
-.route-stop { display:flex; align-items:flex-start; gap:14px; }
-.route-stop + .route-stop { margin-top:0; }
-.route-icon-col { display:flex; flex-direction:column; align-items:center; flex-shrink:0; padding-top:3px; }
-.route-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.route-dot.start { background:var(--accent); }
-.route-dot.waypoint { background:var(--warning); }
-.route-dot.end { border:2px solid var(--danger); background:transparent; }
-.route-dot.pending { border:2px solid var(--border); background:transparent; }
-.route-line { width:1px; flex:1; min-height:24px; background:var(--border); margin:3px 0; }
-.route-content { flex:1; padding-bottom:14px; }
-.route-stop-label { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
-.route-stop-addr { font-size:13px; color:var(--text); }
-.route-stop-addr.placeholder { color:var(--muted); font-style:italic; }
+/* arrival banner */
+#arrival{position:absolute;left:12px;right:12px;top:70px;z-index:900;background:var(--panel2);
+  border:1px solid var(--amber);border-radius:var(--radius);padding:14px;display:none;
+  box-shadow:0 8px 30px rgba(0,0,0,.5)}
+#arrival.show{display:block}
+#arrival .t{font-weight:600;margin-bottom:4px}
+#arrival .s{font-size:13px;color:var(--muted);margin-bottom:10px}
+#arrival .row{display:flex;gap:8px}
+#arrival button{flex:1;padding:10px;border-radius:10px;border:none;font-weight:600;cursor:pointer;font-family:'Inter'}
+#arrKeep{background:var(--panel);color:var(--muted);border:1px solid var(--line)}
+#arrEnd{background:var(--amber);color:#1A1204}
 
-/* Live tracking stats */
-.live-stats { display:none; margin:0 18px 14px; padding:12px 16px; background:rgba(232,255,71,0.06); border:1px solid rgba(232,255,71,0.15); border-radius:12px; }
-.live-stats.visible { display:flex; align-items:center; justify-content:space-between; }
-.live-stat { text-align:center; }
-.live-stat-val { font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--accent); line-height:1; }
-.live-stat-label { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; letter-spacing:0.5px; }
-.live-divider { width:1px; height:32px; background:var(--border); }
+/* modals */
+.overlay{position:fixed;inset:0;background:rgba(4,8,16,.75);z-index:1000;display:none;
+  align-items:flex-end;justify-content:center}
+.overlay.show{display:flex}
+.sheet{background:var(--panel);width:100%;max-width:560px;border-radius:20px 20px 0 0;
+  padding:20px 18px calc(env(safe-area-inset-bottom,0px) + 20px);max-height:88dvh;overflow-y:auto}
+.sheet h2{font-family:'Barlow Condensed';font-weight:700;font-size:22px;letter-spacing:.08em;margin-bottom:14px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.field input,.field textarea{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--navy);color:var(--text);font-family:'Inter';font-size:15px}
+.field textarea{resize:none;height:64px}
+.btnrow{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;padding:14px;border-radius:12px;border:none;font-weight:600;font-size:15px;cursor:pointer;font-family:'Inter'}
+.btn.primary{background:var(--amber);color:#1A1204}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--red)}
+.distbox{display:flex;gap:10px;margin-bottom:12px}
+.distcard{flex:1;background:var(--navy);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;cursor:pointer}
+.distcard.sel{border-color:var(--amber)}
+.distcard .v{font-family:'Barlow Condensed';font-weight:700;font-size:28px}
+.distcard.sel .v{color:var(--amber)}
+.distcard .l{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+.routenote{font-size:12px;color:var(--muted);margin-bottom:12px}
+.fromto{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+.fromto b{color:var(--text);font-weight:500}
 
-.distance-pill { display:none; align-items:baseline; gap:4px; background:var(--accent-dim); border:1px solid rgba(232,255,71,0.2); border-radius:20px; padding:6px 16px; margin:0 18px 14px; width:fit-content; }
-.distance-pill.visible { display:inline-flex; }
-.distance-num { font-family:'Bebas Neue',sans-serif; font-size:28px; color:var(--accent); line-height:1; }
-.distance-unit { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); }
+.locrow{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+.locrow .n{font-weight:500}
+.locrow .a{font-size:12px;color:var(--muted)}
+.locrow button{background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:6px}
+.addloc{display:flex;gap:8px;margin-top:14px}
+.addloc input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--navy);color:var(--text);font-size:15px}
+.addloc button{padding:0 16px;border-radius:10px;border:none;background:var(--panel2);color:var(--amber);font-weight:600;cursor:pointer}
+.hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
 
-.fields { padding:4px 18px 18px; display:flex; flex-direction:column; gap:12px; }
-.field { display:flex; flex-direction:column; gap:6px; }
-.field label { font-size:10px; font-family:'DM Mono',monospace; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
-.field input, .field select { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:14px; outline:none; width:100%; -webkit-appearance:none; transition:border-color 0.2s; }
-.field input:focus, .field select:focus { border-color:rgba(232,255,71,0.4); }
-.field select option { background:var(--surface2); }
-.field input[type=number] { font-family:'DM Mono',monospace; font-size:16px; }
-
-.btn { width:100%; padding:16px; border-radius:var(--radius); border:none; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
-.btn:active { transform:scale(0.98); }
-.btn-start { background:var(--accent); color:#0a0a0a; }
-.btn-stop { background:transparent; color:var(--warning); border:1px solid var(--warning); }
-.btn-end { background:transparent; color:var(--danger); border:1px solid var(--danger); }
-.btn-save { background:var(--surface2); color:var(--accent); border:1px solid rgba(232,255,71,0.3); }
-.btn-disabled { opacity:0.3; pointer-events:none; }
-.btn-row { display:flex; gap:10px; margin-bottom:10px; }
-.btn-row .btn { flex:1; }
-
-.stop-count { font-family:'DM Mono',monospace; font-size:11px; color:var(--warning); background:rgba(255,165,2,0.08); border:1px solid rgba(255,165,2,0.2); padding:3px 10px; border-radius:20px; margin-bottom:10px; text-align:center; display:none; }
-.stop-count.visible { display:block; }
-
-.log-header { display:flex; align-items:center; justify-content:space-between; margin:8px 0 12px; }
-.log-title { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; color:var(--muted); }
-.log-count { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); background:var(--surface2); padding:3px 8px; border-radius:20px; }
-.log-list { display:flex; flex-direction:column; gap:8px; }
-.log-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; animation:slideIn 0.3s ease; }
-@keyframes slideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-.log-left { flex:1; min-width:0; }
-.log-client { font-size:13px; font-weight:500; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.log-meta { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; }
-.log-right { text-align:right; flex-shrink:0; }
-.log-km { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--accent); line-height:1; }
-.log-km-label { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; }
-.log-item.synced { border-color:rgba(46,213,115,0.2); }
-.sync-badge { font-size:9px; font-family:'DM Mono',monospace; color:var(--success); }
-.empty-log { text-align:center; padding:32px 0; color:var(--muted); font-size:13px; font-family:'DM Mono',monospace; }
-
-.toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:30px; font-size:13px; font-family:'DM Mono',monospace; z-index:100; transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1); white-space:nowrap; max-width:calc(100vw - 48px); }
-.toast.show { transform:translateX(-50%) translateY(0); }
-.toast.success { border-color:rgba(46,213,115,0.4); color:var(--success); }
-.toast.error { border-color:rgba(255,71,87,0.4); color:var(--danger); }
-.toast.warning { border-color:rgba(255,165,2,0.4); color:var(--warning); }
-
-.settings-btn { position:fixed; top:20px; right:20px; width:36px; height:36px; border-radius:50%; background:var(--surface2); border:1px solid var(--border); color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; z-index:50; transition:all 0.2s; }
-.settings-panel { position:fixed; inset:0; z-index:90; display:none; }
-.settings-panel.open { display:flex; flex-direction:column; justify-content:flex-end; }
-.settings-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); }
-.settings-sheet { position:relative; background:var(--surface); border-radius:24px 24px 0 0; border-top:1px solid var(--border); padding:24px; z-index:1; max-height:85vh; overflow-y:auto; }
-.settings-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 20px; }
-.settings-title { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px; margin-bottom:16px; }
-.settings-field { margin-bottom:14px; }
-.settings-field label { font-size:10px; font-family:'DM Mono',monospace; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:6px; }
-.settings-field input { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--text); font-family:'DM Mono',monospace; font-size:12px; outline:none; width:100%; transition:border-color 0.2s; }
-.settings-field input:focus { border-color:rgba(232,255,71,0.4); }
-.settings-note { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; margin-top:4px; line-height:1.5; }
+#toast{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 120px);left:50%;transform:translateX(-50%);
+  background:var(--panel2);border:1px solid var(--line);padding:10px 18px;border-radius:12px;
+  font-size:14px;z-index:2000;display:none;white-space:nowrap}
 </style>
 </head>
 <body>
-<div class="app">
-  <div class="header">
-    <div class="logo">KS MILEAGE</div>
-    <div class="header-sub">Business trip log — KS Media</div>
+<div id="app">
+  <header>
+    <div class="brand">KS<span>&nbsp;MILEAGE</span></div>
+    <div class="hbtns">
+      <div class="iconbtn" onclick="openLocations()">&#9906;</div>
+      <div class="iconbtn" onclick="openSettings()">&#9881;</div>
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <div id="arrival">
+    <div class="t" id="arrTitle">Arrived</div>
+    <div class="s" id="arrSub"></div>
+    <div class="row">
+      <button id="arrKeep" onclick="cancelArrival()">Keep tracking</button>
+      <button id="arrEnd" onclick="commitArrival()">End trip</button>
+    </div>
   </div>
 
-  <div class="status-bar idle" id="statusBar">
-    <div class="status-dot"></div>
-    <span id="statusText">No active trip</span>
-  </div>
-
-  <div class="main">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-label">Current Trip</div>
-        <div class="card-date" id="tripDate">—</div>
-      </div>
-
-      <div class="route-list" id="routeList">
-        <div class="route-stop">
-          <div class="route-icon-col">
-            <div class="route-dot start"></div>
-            <div class="route-line"></div>
-          </div>
-          <div class="route-content">
-            <div class="route-stop-label">Start</div>
-            <div class="route-stop-addr placeholder" id="startAddr">Tap Start Trip to begin tracking</div>
-          </div>
-        </div>
-        <div class="route-stop" id="endStopRow">
-          <div class="route-icon-col">
-            <div class="route-dot pending" id="endDot"></div>
-          </div>
-          <div class="route-content">
-            <div class="route-stop-label">End</div>
-            <div class="route-stop-addr placeholder" id="endAddr">—</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live tracking stats shown while driving -->
-      <div class="live-stats" id="liveStats">
-        <div class="live-stat">
-          <div class="live-stat-val" id="liveKm">0.0</div>
-          <div class="live-stat-label">km so far</div>
-        </div>
-        <div class="live-divider"></div>
-        <div class="live-stat">
-          <div class="live-stat-val" id="livePoints">0</div>
-          <div class="live-stat-label">GPS points</div>
-        </div>
-        <div class="live-divider"></div>
-        <div class="live-stat">
-          <div class="live-stat-val" id="liveStops">0</div>
-          <div class="live-stat-label">stops</div>
-        </div>
-      </div>
-
-      <!-- Final distance shown after trip ends -->
-      <div class="distance-pill" id="distancePill">
-        <span class="distance-num" id="distanceNum">0</span>
-        <span class="distance-unit">km total</span>
-      </div>
-
-      <div class="fields">
-        <div class="field">
-          <label>Starting Odometer (km)</label>
-          <input type="number" id="odometerInput" placeholder="e.g. 84320" inputmode="numeric">
-        </div>
-        <div class="field">
-          <label>Client / Project</label>
-          <input type="text" id="clientInput" placeholder="e.g. Nova Auto Detailing" autocomplete="off">
-        </div>
-        <div class="field">
-          <label>Purpose</label>
-          <select id="purposeSelect">
-            <option value="">Select purpose...</option>
-            <option value="Filming">Filming</option>
-            <option value="Client Meeting">Client Meeting</option>
-            <option value="Scout Location">Scout Location</option>
-            <option value="Equipment Pickup">Equipment Pickup</option>
-            <option value="Event Coverage">Event Coverage</option>
-            <option value="Delivery">Delivery</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Notes (optional)</label>
-          <input type="text" id="notesInput" placeholder="e.g. Scouted 3 locations for West Ed shoot" autocomplete="off">
-        </div>
-      </div>
+  <div id="cluster">
+    <div class="readouts">
+      <div class="readout"><div class="val" id="rTime">0:00</div><div class="unit">time</div></div>
+      <div class="readout main"><div class="val" id="rDist">0.0</div><div class="unit">km driven</div></div>
+      <div class="readout"><div class="val" id="rSpd">0</div><div class="unit"><span id="gpsdot"></span>km/h</div></div>
     </div>
-
-    <div class="stop-count" id="stopCount"></div>
-
-    <div class="btn-row">
-      <button class="btn btn-start" id="startBtn" onclick="startTrip()">START</button>
-      <button class="btn btn-stop btn-disabled" id="addStopBtn" onclick="addStop()">+ STOP</button>
-      <button class="btn btn-end btn-disabled" id="endBtn" onclick="endTrip()">END</button>
-    </div>
-    <button class="btn btn-save btn-disabled" id="saveBtn" onclick="saveTrip()">LOG TRIP TO SHEET</button>
-
-    <div style="height:24px;"></div>
-
-    <div class="log-header">
-      <div class="log-title">Recent Trips</div>
-      <div class="log-count" id="logCount">0 trips</div>
-    </div>
-    <div class="log-list" id="logList">
-      <div class="empty-log">No trips logged yet</div>
+    <div id="tripFrom">From <b id="tripFromLabel">&mdash;</b></div>
+    <button class="bigbtn" id="startBtn" onclick="startTrip()">START TRIP</button>
+    <div class="activerow" id="activeRow">
+      <button class="bigbtn" id="cancelBtn" onclick="discardTrip()">DISCARD</button>
+      <button class="bigbtn" id="endBtn" onclick="endTrip(false)">END TRIP</button>
     </div>
   </div>
 </div>
 
-<div class="settings-btn" onclick="openSettings()">⚙</div>
-
-<div class="settings-panel" id="settingsPanel">
-  <div class="settings-overlay" onclick="closeSettings()"></div>
-  <div class="settings-sheet">
-    <div class="settings-handle"></div>
-    <div class="settings-title">Settings</div>
-    <div class="settings-field">
-      <label>OpenRouteService API Key</label>
-      <input type="text" id="orsKeyInput" placeholder="Paste your ORS API key here" autocomplete="off">
-      <div class="settings-note">Get your free key at openrouteservice.org</div>
+<!-- Trip details form (shown at start) -->
+<div class="overlay" id="startOverlay">
+  <div class="sheet">
+    <h2>TRIP DETAILS</h2>
+    <div class="field"><label>Client / Project</label><input id="fClient" list="clientList"><datalist id="clientList"></datalist></div>
+    <div class="field"><label>Purpose</label><input id="fPurpose" placeholder="Shoot day, meeting, delivery&hellip;"></div>
+    <div class="field"><label>Start odometer (km)</label><input id="fOdo" inputmode="numeric"></div>
+    <div class="field"><label>Notes</label><textarea id="fNotes"></textarea></div>
+    <div class="btnrow">
+      <button class="btn ghost" onclick="hide('startOverlay')">Cancel</button>
+      <button class="btn primary" id="beginBtn" onclick="beginTrip()">Start tracking</button>
     </div>
-    <div style="height:8px;"></div>
-    <div class="settings-field">
-      <label>Google Apps Script URL</label>
-      <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
-      <div class="settings-note">Paste your deployed Apps Script web app URL here.</div>
-    </div>
-    <div style="height:8px;"></div>
-    <button class="btn btn-save" onclick="saveSettings()" style="font-size:16px;">SAVE SETTINGS</button>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- Settings -->
+<div class="overlay" id="setOverlay">
+  <div class="sheet">
+    <h2>SETTINGS</h2>
+    <div class="field"><label>Google Maps API key (Routes API)</label><input id="sKey" autocomplete="off"></div>
+    <div class="field"><label>Google Apps Script URL</label><input id="sUrl" autocomplete="off"></div>
+    <div class="hint">The Google key needs the Routes API enabled in Google Cloud Console. Restrict it to your GitHub Pages URL. Both values stay saved on this phone across app updates.</div>
+    <div class="btnrow">
+      <button class="btn ghost" onclick="hide('setOverlay')">Close</button>
+      <button class="btn primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
 
+<!-- Locations -->
+<div class="overlay" id="locOverlay">
+  <div class="sheet">
+    <h2>SAVED LOCATIONS</h2>
+    <div id="locList"></div>
+    <div class="addloc"><input id="locName" placeholder="Name (e.g. Nova Auto Detailing)"><button onclick="addHere()">Add here</button></div>
+    <div class="addloc"><input id="locAddr" placeholder="Or search an address"><button onclick="addByAddress()">Find</button></div>
+    <div class="hint">Trips auto-end when you stop within 200 m of a saved location. Add each client once from their parking lot and the app handles the rest.</div>
+    <div class="btnrow"><button class="btn ghost" onclick="hide('locOverlay')">Close</button></div>
+  </div>
+</div>
+
+<!-- Recovery -->
+<div class="overlay" id="recOverlay">
+  <div class="sheet">
+    <h2>OPEN TRIP FOUND</h2>
+    <div class="fromto" id="recLabel">You have a trip that was never ended.</div>
+    <div class="btnrow">
+      <button class="btn danger" onclick="recDiscard()">Discard</button>
+      <button class="btn ghost" onclick="recResume()">Resume</button>
+      <button class="btn primary" onclick="recClose()">End it now</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// ── Home config — hardcoded ───────────────────────────────
-var HOME_COORDS = { lat: 53.628363, lng: -113.326770 };
-var HOME_ADDRESS = '963 167 Ave NE, Edmonton';
+/* ================= CONFIG / STATE ================= */
+const LS = { cfg:'ks_cfg', locs:'ks_locations', trip:'ks_activeTrip', clients:'ks_clients', queue:'ks_pendingTrips' };
+const HOME = { name:'Home', lat:53.628363, lng:-113.326770 };
+let cfg = JSON.parse(localStorage.getItem(LS.cfg) || '{}');
+/* migrate settings from the original app if present */
+if(!cfg.scriptUrl && localStorage.getItem('scriptUrl')) cfg.scriptUrl = localStorage.getItem('scriptUrl');
+let locations = JSON.parse(localStorage.getItem(LS.locs) || 'null') || [HOME];
+let clients = JSON.parse(localStorage.getItem(LS.clients) || '[]');
+let trip = null;              /* {startTime, path:[{lat,lng,t}], startLabel, startNear} */
+let watchId = null, wakeLock = null, timerInt = null;
+let lastRaw = null, lastMoveTime = 0, arrivalTarget = null, arrivalTimer = null;
 
-// ── Battery optimization settings ────────────────────────
-var TRACK_INTERVAL_MS = 2000;    // Poll GPS every 2 seconds — matches Maps accuracy
-var MIN_DISTANCE_M    = 10;      // Only record point if moved 10+ metres
-var GPS_TIMEOUT_MS    = 10000;   // GPS request timeout
+/* ================= MAP ================= */
+const map = L.map('map', { zoomControl:false }).setView([HOME.lat, HOME.lng], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution:'&copy; OpenStreetMap'
+}).addTo(map);
+let meMarker = L.circleMarker([HOME.lat, HOME.lng], {radius:8, color:'#F5A623', fillColor:'#F5A623', fillOpacity:1}).addTo(map);
+let pathLine = L.polyline([], {color:'#8FA0BC', weight:3, opacity:.7}).addTo(map);
+let routeLine = L.polyline([], {color:'#F5A623', weight:5, opacity:.9}).addTo(map);
 
-// ── State ─────────────────────────────────────────────────
-var state = {
-  tripActive:    false,
-  trackPath:     [],           // full GPS path [{lat,lng}]
-  waypoints:     [],           // named stops [{coords, address}]
-  startAddress:  '',
-  endAddress:    '',
-  startTime:     null,
-  totalKm:       0,
-  trackTimer:    null,
-  trips:         JSON.parse(localStorage.getItem('ks_trips') || '[]'),
-  scriptUrl:     localStorage.getItem('ks_script_url') || '',
-  orsKey:        localStorage.getItem('ks_ors_key') || ''
-};
-
-function init() {
-  document.getElementById('tripDate').textContent = formatDate(new Date());
-  renderLog();
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+function show(id){ $(id).classList.add('show'); }
+function hide(id){ $(id).classList.remove('show'); }
+function toast(msg, ms=2600){ const t=$('toast'); t.textContent=msg; t.style.display='block';
+  clearTimeout(t._x); t._x=setTimeout(()=>t.style.display='none', ms); }
+function hav(a,b){
+  const R=6371, dLa=(b.lat-a.lat)*Math.PI/180, dLo=(b.lng-a.lng)*Math.PI/180;
+  const x=Math.sin(dLa/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
 }
-
-// ── Start Trip ────────────────────────────────────────────
-function startTrip() {
-  var odometer = document.getElementById('odometerInput').value.trim();
-  if (!odometer) { showToast('Enter your starting odometer reading first', 'error'); return; }
-
-  setBtn('startBtn', 'LOCATING...', true);
-
+function pathKm(p){ let d=0; for(let i=1;i<p.length;i++) d+=hav(p[i-1],p[i]); return d; }
+function nearSaved(pos, km){ let best=null, bd=km;
+  for(const l of locations){ const d=hav(pos,l); if(d<bd){bd=d;best=l;} } return best; }
+function getPos(){ return new Promise((res,rej)=>
   navigator.geolocation.getCurrentPosition(
-    async function(pos) {
-      var coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      var address = resolveAddress(coords);
-      if (address instanceof Promise) address = await address;
-
-      state.tripActive   = true;
-      state.trackPath    = [coords];
-      state.waypoints    = [{ coords: coords, address: address }];
-      state.startAddress = address;
-      state.startTime    = new Date();
-      state.totalKm      = 0;
-
-      document.getElementById('startAddr').textContent = address;
-      document.getElementById('startAddr').classList.remove('placeholder');
-      document.getElementById('odometerInput').disabled = true;
-
-      setBtn('startBtn', 'TRACKING', true);
-      setBtn('addStopBtn', '+ STOP', false);
-      setBtn('endBtn', 'END', false);
-
-      var sb = document.getElementById('statusBar');
-      sb.classList.remove('idle'); sb.classList.add('active');
-      document.getElementById('statusText').textContent = 'Live tracking · ' + formatTime(state.startTime);
-      document.getElementById('tripDate').textContent = formatDate(state.startTime);
-      document.getElementById('liveStats').classList.add('visible');
-
-      // Start battery-optimized background tracking
-      startTracking();
-      showToast('Trip started — tracking your route', 'success');
-    },
-    function() { setBtn('startBtn', 'START', false); showToast('Could not get location — enable location access', 'error'); },
-    { enableHighAccuracy: true, timeout: GPS_TIMEOUT_MS }
-  );
+    p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),
+    rej, {enableHighAccuracy:true, timeout:12000, maximumAge:5000})); }
+async function revGeo(pos){
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.lat}&lon=${pos.lng}`);
+    const j = await r.json();
+    const a = j.address||{};
+    return [a.house_number, a.road, a.city||a.town||a.village].filter(Boolean).join(' ') || j.display_name || 'Unknown';
+  }catch(e){ return `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`; }
 }
-
-// ── Background Tracking ───────────────────────────────────
-function startTracking() {
-  state.trackTimer = setInterval(function() {
-    if (!state.tripActive) return;
-    navigator.geolocation.getCurrentPosition(
-      function(pos) {
-        var newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        var lastCoords = state.trackPath[state.trackPath.length - 1];
-
-        // Only record if moved more than MIN_DISTANCE_M metres — saves battery
-        var movedM = haversine(lastCoords, newCoords) * 1000;
-        if (movedM < MIN_DISTANCE_M) return;
-
-        state.trackPath.push(newCoords);
-
-        // Recalculate running total from full path
-        state.totalKm = calcPathDistance(state.trackPath);
-
-        // Update live stats
-        document.getElementById('liveKm').textContent = state.totalKm.toFixed(1);
-        document.getElementById('livePoints').textContent = state.trackPath.length;
-        document.getElementById('liveStops').textContent = Math.max(0, state.waypoints.length - 1);
-        document.getElementById('statusText').textContent = 'Live tracking · ' + state.totalKm.toFixed(1) + ' km';
-      },
-      function() {},  // Silent fail — try again next interval
-      { enableHighAccuracy: false, timeout: GPS_TIMEOUT_MS, maximumAge: 25000 }
-      // Note: enableHighAccuracy: false during background polling = big battery saving
-      // High accuracy only used at Start, Stop, and End taps
-    );
-  }, TRACK_INTERVAL_MS);
+async function labelFor(pos){
+  const s = nearSaved(pos, 0.3);
+  return s ? s.name : await revGeo(pos);
 }
+function saveTripState(){ trip ? localStorage.setItem(LS.trip, JSON.stringify(trip)) : localStorage.removeItem(LS.trip); }
 
-function stopTracking() {
-  if (state.trackTimer) {
-    clearInterval(state.trackTimer);
-    state.trackTimer = null;
+/* ================= WAKE LOCK ================= */
+async function grabWake(){
+  try{ wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(trip && document.visibilityState==='visible') grabWake(); });
+
+/* ================= TRIP LIFECYCLE ================= */
+function startTrip(){
+  if(!navigator.geolocation){ toast('No GPS on this device'); return; }
+  $('clientList').innerHTML = clients.map(c=>`<option value="${c}">`).join('');
+  show('startOverlay');
+}
+async function beginTrip(){
+  $('beginBtn').disabled = true;
+  try{
+    const pos = await getPos();
+    trip = { startTime: Date.now(), path:[{...pos, t:Date.now()}], startLabel:'\u2026', startNear:null,
+      client: $('fClient').value.trim(), purpose: $('fPurpose').value.trim(),
+      odo: $('fOdo').value.trim(), notes: $('fNotes').value.trim() };
+    const near = nearSaved(pos, 0.3);
+    trip.startNear = near ? near.name : null;
+    lastMoveTime = Date.now(); lastRaw = pos;
+    labelFor(pos).then(l=>{ trip.startLabel=l; $('tripFromLabel').textContent=l; saveTripState(); });
+    saveTripState();
+    beginWatch(); grabWake();
+    map.setView([pos.lat,pos.lng], 15);
+    pathLine.setLatLngs([[pos.lat,pos.lng]]); routeLine.setLatLngs([]);
+    hide('startOverlay');
+    $('fClient').value=''; $('fPurpose').value=''; $('fOdo').value=''; $('fNotes').value='';
+    $('startBtn').style.display='none'; $('activeRow').classList.add('show'); $('tripFrom').classList.add('show');
+    timerInt = setInterval(tickClock, 1000);
+    toast('Tracking. Trip logs itself when you arrive.');
+  }catch(e){ toast('Could not get a GPS fix. Check location permission.'); }
+  $('beginBtn').disabled = false;
+}
+function beginWatch(){
+  watchId = navigator.geolocation.watchPosition(onFix, ()=>{}, {enableHighAccuracy:true, maximumAge:2000, timeout:15000});
+}
+function onFix(p){
+  if(!trip) return;
+  const pos = {lat:p.coords.latitude, lng:p.coords.longitude};
+  lastRaw = pos;
+  $('gpsdot').classList.toggle('ok', p.coords.accuracy <= 50);
+  if(p.coords.speed!=null) $('rSpd').textContent = Math.max(0, Math.round(p.coords.speed*3.6));
+  if(p.coords.accuracy > 50) return;
+  const last = trip.path[trip.path.length-1];
+  if(hav(last,pos)*1000 >= 10){
+    trip.path.push({...pos, t:Date.now()});
+    lastMoveTime = Date.now();
+    pathLine.addLatLng([pos.lat,pos.lng]);
+    saveTripState();
   }
+  meMarker.setLatLng([pos.lat,pos.lng]);
+  map.panTo([pos.lat,pos.lng], {animate:true});
+  $('rDist').textContent = pathKm(trip.path).toFixed(1);
+  checkArrival();
+}
+function tickClock(){
+  if(!trip) return;
+  const s = Math.floor((Date.now()-trip.startTime)/1000);
+  $('rTime').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 }
 
-// ── Add Named Stop ────────────────────────────────────────
-function addStop() {
-  if (!state.tripActive) return;
-  setBtn('addStopBtn', 'LOCATING...', true);
-
-  // Use high accuracy for named stops
-  navigator.geolocation.getCurrentPosition(
-    async function(pos) {
-      var coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      var address = resolveAddress(coords);
-      if (address instanceof Promise) address = await address;
-
-      // Add to path and waypoints
-      state.trackPath.push(coords);
-      state.waypoints.push({ coords: coords, address: address });
-      state.totalKm = calcPathDistance(state.trackPath);
-
-      updateRouteUI();
-
-      var count = state.waypoints.length - 1;
-      var sc = document.getElementById('stopCount');
-      sc.textContent = count + ' stop' + (count !== 1 ? 's' : '') + ' marked';
-      sc.classList.add('visible');
-
-      document.getElementById('liveKm').textContent = state.totalKm.toFixed(1);
-      document.getElementById('liveStops').textContent = count;
-
-      setBtn('addStopBtn', '+ STOP', false);
-      showToast('Stop ' + count + ' marked: ' + address, 'warning');
-    },
-    function() { setBtn('addStopBtn', '+ STOP', false); showToast('Could not get location', 'error'); },
-    { enableHighAccuracy: true, timeout: GPS_TIMEOUT_MS }
-  );
+/* ================= AUTO ARRIVAL ================= */
+function checkArrival(){
+  if(!trip || arrivalTarget || !lastRaw) return;
+  const km = pathKm(trip.path);
+  if(km < 1) return;                                        /* must have actually gone somewhere */
+  const near = nearSaved(lastRaw, 0.2);
+  if(!near) return;
+  if(near.name === trip.startNear && km < 2) return;        /* round trips need real distance */
+  if(Date.now() - lastMoveTime < 60000) return;             /* must be stopped about a minute */
+  arrivalTarget = near;
+  $('arrTitle').textContent = `Arrived at ${near.name}`;
+  let count = 20;
+  $('arrSub').textContent = `Trip ends automatically in ${count}s`;
+  show('arrival');
+  arrivalTimer = setInterval(()=>{
+    count--;
+    if(count<=0){ commitArrival(); return; }
+    $('arrSub').textContent = `Trip ends automatically in ${count}s`;
+  }, 1000);
+}
+function cancelArrival(){
+  clearInterval(arrivalTimer); hide('arrival');
+  lastMoveTime = Date.now();          /* snooze: needs another stopped minute to refire */
+  arrivalTarget = null;
+}
+function commitArrival(){
+  clearInterval(arrivalTimer); hide('arrival');
+  endTrip(true);
 }
 
-// ── End Trip ──────────────────────────────────────────────
-function endTrip() {
-  if (!state.tripActive) return;
-  setBtn('endBtn', 'LOCATING...', true);
+/* ================= END TRIP (fully automatic) ================= */
+async function endTrip(auto){
+  if(!trip) return;
+  navigator.geolocation.clearWatch(watchId); clearInterval(timerInt);
+  if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock=null; }
+  const t = trip;                                   /* hold reference; UI can reset later */
+  const endPos = lastRaw || t.path[t.path.length-1];
+  if(hav(t.path[t.path.length-1], endPos)*1000 >= 10) t.path.push({...endPos, t:Date.now()});
+  saveTripState();
+  toast('Trip ended \u2014 calculating distance\u2026');
 
-  navigator.geolocation.getCurrentPosition(
-    async function(pos) {
-      var coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      var address = resolveAddress(coords);
-      if (address instanceof Promise) address = await address;
+  const from = t.startLabel;
+  let to = (arrivalTarget && arrivalTarget.name) || '';
+  arrivalTarget = null;
+  if(!to) to = await labelFor(endPos);
 
-      // Add final point to path
-      state.trackPath.push(coords);
-      state.endAddress = address;
-      state.totalKm = parseFloat(calcPathDistance(state.trackPath).toFixed(1));
+  /* client autofill: if none entered at start and we arrived at a saved client, use it */
+  let client = t.client;
+  if(!client && to && to !== 'Home') client = to;
+  if(client && !clients.includes(client)){ clients.unshift(client); clients=clients.slice(0,30);
+    localStorage.setItem(LS.clients, JSON.stringify(clients)); }
 
-      stopTracking();
+  /* distance: routed through driven waypoints, GPS path as fallback */
+  let km = pathKm(t.path), method = 'GPS path';
+  try{
+    const r = await routeDistance(t.path);
+    km = r.km; method = 'routed';
+    if(r.poly) routeLine.setLatLngs(r.poly);
+  }catch(e){}
 
-      document.getElementById('endAddr').textContent = address;
-      document.getElementById('endAddr').classList.remove('placeholder');
-      document.getElementById('endDot').className = 'route-dot end';
-
-      document.getElementById('liveStats').classList.remove('visible');
-      var pill = document.getElementById('distancePill');
-      pill.classList.add('visible');
-      document.getElementById('distanceNum').textContent = state.totalKm;
-
-      setBtn('endBtn', 'ENDED', true);
-      setBtn('addStopBtn', '+ STOP', true);
-      setBtn('saveBtn', 'LOG TRIP TO SHEET', false);
-
-      var sb = document.getElementById('statusBar');
-      sb.classList.remove('active'); sb.classList.add('idle');
-      document.getElementById('statusText').textContent = 'Trip ended · ' + state.totalKm + ' km tracked';
-
-      showToast('Trip ended · ' + state.totalKm + ' km', 'success');
-    },
-    function() { setBtn('endBtn', 'END', false); showToast('Could not get location', 'error'); },
-    { enableHighAccuracy: true, timeout: GPS_TIMEOUT_MS }
-  );
-}
-
-// ── Save Trip ─────────────────────────────────────────────
-async function saveTrip() {
-  var client   = document.getElementById('clientInput').value.trim();
-  var purpose  = document.getElementById('purposeSelect').value;
-  var notes    = document.getElementById('notesInput').value.trim();
-  var odometer = document.getElementById('odometerInput').value.trim();
-
-  if (!client)  { showToast('Enter a client / project name', 'error'); return; }
-  if (!purpose) { showToast('Select a purpose', 'error'); return; }
-
-  var trip = {
-    date:         formatDate(state.startTime),
-    time:         formatTime(state.startTime),
-    odometer:     parseInt(odometer) || 0,
-    client:       client,
-    purpose:      purpose,
-    startAddress: state.startAddress,
-    endAddress:   state.endAddress,
-    distanceKm:   state.totalKm,
-    stopCount:    Math.max(0, state.waypoints.length - 1),
-    gpsPoints:    state.trackPath.length,
-    notes:        notes,
-    synced:       false,
-    id:           Date.now()
+  const payload = {
+    date: new Date(t.startTime).toLocaleDateString('en-CA'),
+    client: client, purpose: t.purpose || '',
+    from: from, to: to,
+    distance: Number(km.toFixed(1)),
+    odometer: t.odo || '',
+    notes: t.notes || ''
   };
+  if(!cfg.scriptUrl){ enqueue(payload); toast('No Apps Script URL set \u2014 trip queued'); resetUI(); return; }
+  try{
+    await fetch(cfg.scriptUrl, { method:'POST', body: JSON.stringify(payload) });
+    toast(`Logged ${payload.distance} km (${method}) \u2192 ${to} \u2713`, 4000);
+  }catch(e){
+    enqueue(payload);
+    toast(`Saved offline \u2014 syncs when back on WiFi (${queueCount()} waiting)`, 3500);
+  }
+  resetUI();
+}
+function discardTrip(){
+  if(!confirm('Discard this trip? Nothing will be logged.')) return;
+  navigator.geolocation.clearWatch(watchId); clearInterval(timerInt);
+  if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock=null; }
+  resetUI();
+}
+function resetUI(){
+  trip = null; saveTripState();
+  pathLine.setLatLngs([]); routeLine.setLatLngs([]);
+  $('rDist').textContent='0.0'; $('rTime').textContent='0:00'; $('rSpd').textContent='0';
+  $('startBtn').style.display='block'; $('activeRow').classList.remove('show');
+  $('tripFrom').classList.remove('show'); $('tripFromLabel').textContent='\u2014';
+  hide('startOverlay');
+}
 
-  if (state.scriptUrl) {
-    setBtn('saveBtn', 'SYNCING...', true);
-    try {
-      await fetch(state.scriptUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(trip)
-      });
-      trip.synced = true;
-      showToast('Logged to Google Sheets', 'success');
-    } catch(e) {
-      showToast('Saved locally — sync failed', 'error');
+/* ================= GOOGLE ROUTES ================= */
+async function routeDistance(path){
+  if(!cfg.gKey) throw new Error('no API key in settings');
+  if(path.length < 2) throw new Error('not enough GPS points');
+  const inner = path.slice(1, -1);
+  let vias = inner;
+  if(inner.length > 25){
+    vias = []; const step = inner.length / 25;
+    for(let i=0;i<25;i++) vias.push(inner[Math.floor(i*step)]);
+  }
+  const body = {
+    origin:{location:{latLng:{latitude:path[0].lat, longitude:path[0].lng}}},
+    destination:{location:{latLng:{latitude:path[path.length-1].lat, longitude:path[path.length-1].lng}}},
+    intermediates: vias.map(p=>({location:{latLng:{latitude:p.lat, longitude:p.lng}}, via:true})),
+    travelMode:'DRIVE'
+  };
+  const r = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'X-Goog-Api-Key': cfg.gKey,
+      'X-Goog-FieldMask':'routes.distanceMeters,routes.polyline.encodedPolyline'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!r.ok){ const j = await r.json().catch(()=>({})); throw new Error(j.error?.message || ('HTTP '+r.status)); }
+  const j = await r.json();
+  if(!j.routes || !j.routes.length) throw new Error('no route returned');
+  return { km: j.routes[0].distanceMeters/1000, poly: decodePoly(j.routes[0].polyline?.encodedPolyline) };
+}
+function decodePoly(str){
+  if(!str) return null;
+  let pts=[], i=0, lat=0, lng=0;
+  while(i<str.length){
+    for(const which of [0,1]){
+      let shift=0, result=0, b;
+      do{ b=str.charCodeAt(i++)-63; result|=(b&0x1f)<<shift; shift+=5; }while(b>=0x20);
+      const d = (result&1) ? ~(result>>1) : (result>>1);
+      if(which===0) lat+=d; else lng+=d;
     }
-  } else {
-    showToast('Saved locally — add Script URL in settings', 'success');
+    pts.push([lat/1e5, lng/1e5]);
   }
-
-  state.trips.unshift(trip);
-  localStorage.setItem('ks_trips', JSON.stringify(state.trips.slice(0, 50)));
-  resetTrip();
-  renderLog();
+  return pts;
 }
 
-// ── Update Route UI with stops ────────────────────────────
-function updateRouteUI() {
-  var routeList = document.getElementById('routeList');
-  var endRow    = document.getElementById('endStopRow');
-  routeList.querySelectorAll('.waypoint-row').forEach(function(el) { el.remove(); });
-
-  for (var i = 1; i < state.waypoints.length; i++) {
-    var row = document.createElement('div');
-    row.className = 'route-stop waypoint-row';
-    row.innerHTML =
-      '<div class="route-icon-col">' +
-        '<div class="route-dot waypoint"></div>' +
-        '<div class="route-line"></div>' +
-      '</div>' +
-      '<div class="route-content">' +
-        '<div class="route-stop-label">Stop ' + i + '</div>' +
-        '<div class="route-stop-addr">' + state.waypoints[i].address + '</div>' +
-      '</div>';
-    routeList.insertBefore(row, endRow);
+/* ================= SYNC / OFFLINE QUEUE ================= */
+function getQueue(){ try{ return JSON.parse(localStorage.getItem(LS.queue)||'[]'); }catch(e){ return []; } }
+function queueCount(){ return getQueue().length; }
+function enqueue(payload){ const q=getQueue(); q.push(payload); localStorage.setItem(LS.queue, JSON.stringify(q)); }
+let flushing = false;
+async function flushQueue(){
+  if(flushing || !cfg.scriptUrl) return;
+  let q = getQueue();
+  if(!q.length) return;
+  flushing = true;
+  let synced = 0;
+  while(q.length){
+    try{
+      await fetch(cfg.scriptUrl, { method:'POST', body: JSON.stringify(q[0]) });
+      q.shift(); localStorage.setItem(LS.queue, JSON.stringify(q));
+      synced++;
+    }catch(e){ break; }
   }
+  flushing = false;
+  if(synced) toast(`Synced ${synced} queued trip${synced>1?'s':''} \u2713`);
+}
+window.addEventListener('online', flushQueue);
+setInterval(flushQueue, 60000);
+
+/* ================= RECOVERY ================= */
+function checkRecovery(){
+  const saved = localStorage.getItem(LS.trip);
+  if(!saved) return;
+  try{ trip = JSON.parse(saved); }catch(e){ localStorage.removeItem(LS.trip); return; }
+  if(!trip || !trip.path || !trip.path.length){ trip=null; localStorage.removeItem(LS.trip); return; }
+  const started = new Date(trip.startTime);
+  $('recLabel').innerHTML = `A trip from <b>${trip.startLabel||'unknown'}</b> started
+    ${started.toLocaleString()} was never ended (${pathKm(trip.path).toFixed(1)} km recorded so far).`;
+  show('recOverlay');
+}
+function recDiscard(){ hide('recOverlay'); resetUI(); }
+function recResume(){
+  hide('recOverlay');
+  lastMoveTime = Date.now(); lastRaw = trip.path[trip.path.length-1];
+  pathLine.setLatLngs(trip.path.map(p=>[p.lat,p.lng]));
+  map.setView([lastRaw.lat,lastRaw.lng], 14);
+  $('tripFromLabel').textContent = trip.startLabel; $('tripFrom').classList.add('show');
+  $('startBtn').style.display='none'; $('activeRow').classList.add('show');
+  $('rDist').textContent = pathKm(trip.path).toFixed(1);
+  beginWatch(); grabWake(); timerInt = setInterval(tickClock, 1000);
+}
+async function recClose(){
+  hide('recOverlay');
+  try{ lastRaw = await getPos(); }catch(e){ lastRaw = trip.path[trip.path.length-1]; }
+  endTrip(false);
 }
 
-// ── Reset ─────────────────────────────────────────────────
-function resetTrip() {
-  stopTracking();
-  state.tripActive   = false;
-  state.trackPath    = [];
-  state.waypoints    = [];
-  state.startAddress = '';
-  state.endAddress   = '';
-  state.startTime    = null;
-  state.totalKm      = 0;
-
-  document.getElementById('startAddr').textContent = 'Tap Start Trip to begin tracking';
-  document.getElementById('startAddr').classList.add('placeholder');
-  document.getElementById('endAddr').textContent = '—';
-  document.getElementById('endAddr').classList.add('placeholder');
-  document.getElementById('endDot').className = 'route-dot pending';
-  document.querySelectorAll('.waypoint-row').forEach(function(el) { el.remove(); });
-
-  document.getElementById('distancePill').classList.remove('visible');
-  document.getElementById('liveStats').classList.remove('visible');
-  document.getElementById('stopCount').classList.remove('visible');
-  document.getElementById('liveKm').textContent = '0.0';
-  document.getElementById('livePoints').textContent = '0';
-  document.getElementById('liveStops').textContent = '0';
-
-  document.getElementById('odometerInput').value = '';
-  document.getElementById('odometerInput').disabled = false;
-  document.getElementById('clientInput').value = '';
-  document.getElementById('purposeSelect').value = '';
-  document.getElementById('notesInput').value = '';
-
-  setBtn('startBtn', 'START', false);
-  setBtn('addStopBtn', '+ STOP', true);
-  setBtn('endBtn', 'END', true);
-  setBtn('saveBtn', 'LOG TRIP TO SHEET', true);
-
-  document.getElementById('statusBar').classList.remove('active');
-  document.getElementById('statusBar').classList.add('idle');
-  document.getElementById('statusText').textContent = 'No active trip';
-  document.getElementById('tripDate').textContent = formatDate(new Date());
+/* ================= LOCATIONS ================= */
+function openLocations(){ renderLocs(); show('locOverlay'); }
+function renderLocs(){
+  $('locList').innerHTML = locations.map((l,i)=>`
+    <div class="locrow">
+      <div><div class="n">${l.name}</div><div class="a">${l.lat.toFixed(5)}, ${l.lng.toFixed(5)}</div></div>
+      ${l.name==='Home'?'':`<button onclick="delLoc(${i})">Remove</button>`}
+    </div>`).join('');
+}
+function persistLocs(){ localStorage.setItem(LS.locs, JSON.stringify(locations)); }
+function delLoc(i){ locations.splice(i,1); persistLocs(); renderLocs(); }
+async function addHere(){
+  const name = $('locName').value.trim();
+  if(!name){ toast('Give it a name first'); return; }
+  try{
+    const pos = await getPos();
+    locations.push({name, ...pos}); persistLocs(); renderLocs();
+    $('locName').value=''; toast(`${name} saved`);
+  }catch(e){ toast('Could not get a GPS fix'); }
+}
+async function addByAddress(){
+  const name = $('locName').value.trim(), q = $('locAddr').value.trim();
+  if(!name || !q){ toast('Enter a name and an address'); return; }
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q+', Alberta, Canada')}`);
+    const j = await r.json();
+    if(!j.length){ toast('Address not found'); return; }
+    locations.push({name, lat:+j[0].lat, lng:+j[0].lon}); persistLocs(); renderLocs();
+    $('locName').value=''; $('locAddr').value=''; toast(`${name} saved`);
+  }catch(e){ toast('Search failed'); }
 }
 
-// ── Render Log ────────────────────────────────────────────
-function renderLog() {
-  var list = document.getElementById('logList');
-  document.getElementById('logCount').textContent = state.trips.length + ' trip' + (state.trips.length !== 1 ? 's' : '');
-  if (state.trips.length === 0) { list.innerHTML = '<div class="empty-log">No trips logged yet</div>'; return; }
-  list.innerHTML = state.trips.slice(0, 15).map(function(t) {
-    var stops = t.stopCount ? ' · ' + t.stopCount + ' stop' + (t.stopCount !== 1 ? 's' : '') : '';
-    return '<div class="log-item ' + (t.synced ? 'synced' : '') + '">' +
-      '<div class="log-left">' +
-        '<div class="log-client">' + t.client + '</div>' +
-        '<div class="log-meta">' + t.date + ' · ' + t.purpose + stops + '</div>' +
-      '</div>' +
-      '<div class="log-right">' +
-        '<div class="log-km">' + t.distanceKm + '</div>' +
-        '<div class="log-km-label">km</div>' +
-        (t.synced ? '<div class="sync-badge">SYNCED</div>' : '') +
-      '</div>' +
-    '</div>';
-  }).join('');
+/* ================= SETTINGS ================= */
+function openSettings(){ $('sKey').value=cfg.gKey||''; $('sUrl').value=cfg.scriptUrl||''; show('setOverlay'); }
+function saveSettings(){
+  cfg.gKey=$('sKey').value.trim(); cfg.scriptUrl=$('sUrl').value.trim();
+  localStorage.setItem(LS.cfg, JSON.stringify(cfg));
+  hide('setOverlay'); toast('Settings saved');
 }
 
-// ── Distance Helpers ──────────────────────────────────────
-function haversine(a, b) {
-  var R = 6371;
-  var dLat = (b.lat - a.lat) * Math.PI / 180;
-  var dLng = (b.lng - a.lng) * Math.PI / 180;
-  var x = Math.sin(dLat/2) * Math.sin(dLat/2) +
-           Math.cos(a.lat * Math.PI/180) * Math.cos(b.lat * Math.PI/180) *
-           Math.sin(dLng/2) * Math.sin(dLng/2);
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
-}
-
-function calcPathDistance(path) {
-  var total = 0;
-  for (var i = 0; i < path.length - 1; i++) {
-    total += haversine(path[i], path[i+1]);
-  }
-  return total;
-}
-
-// ── Address Resolution ────────────────────────────────────
-async function resolveAddress(coords) {
-  var dist = haversine(coords, HOME_COORDS);
-  if (dist <= 0.5) return HOME_ADDRESS;
-  return await reverseGeocode(coords.lat, coords.lng);
-}
-
-async function reverseGeocode(lat, lng) {
-  try {
-    var res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json');
-    var data = await res.json();
-    var a = data.address;
-    return [a.road, a.suburb || a.city || a.town].filter(Boolean).join(', ') || (lat.toFixed(4) + ', ' + lng.toFixed(4));
-  } catch(e) {
-    return lat.toFixed(4) + ', ' + lng.toFixed(4);
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────
-function setBtn(id, text, disabled) {
-  var btn = document.getElementById(id);
-  btn.textContent = text;
-  disabled ? btn.classList.add('btn-disabled') : btn.classList.remove('btn-disabled');
-}
-
-function formatDate(d) { return d.toLocaleDateString('en-CA', { month:'short', day:'numeric', year:'numeric' }); }
-function formatTime(d) { return d.toLocaleTimeString('en-CA', { hour:'2-digit', minute:'2-digit' }); }
-
-// ── Settings ──────────────────────────────────────────────
-function openSettings() {
-  document.getElementById('scriptUrl').value = state.scriptUrl;
-  document.getElementById('orsKeyInput').value = state.orsKey;
-  document.getElementById('settingsPanel').classList.add('open');
-}
-function closeSettings() { document.getElementById('settingsPanel').classList.remove('open'); }
-function saveSettings() {
-  state.scriptUrl = document.getElementById('scriptUrl').value.trim();
-  state.orsKey    = document.getElementById('orsKeyInput').value.trim();
-  localStorage.setItem('ks_script_url', state.scriptUrl);
-  localStorage.setItem('ks_ors_key', state.orsKey);
-  closeSettings();
-  showToast('Settings saved', 'success');
-}
-
-function showToast(msg, type) {
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast ' + (type || '');
-  t.classList.add('show');
-  setTimeout(function() { t.classList.remove('show'); }, 3000);
-}
-
-init();
+/* ================= INIT ================= */
+checkRecovery();
+flushQueue();
+if(navigator.geolocation) navigator.geolocation.getCurrentPosition(
+  p=>{ if(!trip){ map.setView([p.coords.latitude,p.coords.longitude],13);
+       meMarker.setLatLng([p.coords.latitude,p.coords.longitude]); } }, ()=>{}, {maximumAge:60000});
 </script>
 </body>
 </html>
